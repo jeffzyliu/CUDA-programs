@@ -73,7 +73,7 @@ void Jacobi_Solver(double* x,const double* b)
 		iter_num++;
 	}while(residual>tolerance||iter_num==max_num);	
 
-	x=xw;
+	x=xr;
 
 	cout<<"Jacobi solver converges in "<<iter_num<<" iterations, with residual "<<residual<<endl;
 
