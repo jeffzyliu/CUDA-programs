@@ -12,7 +12,7 @@ using namespace std;
 
 namespace name
 {
-	std::string team="Team_X";
+	std::string team="";
 	std::string author_1="Name_1";
 	std::string author_2="Name_2";
 	std::string author_3="Name_3";	////optional
@@ -45,7 +45,7 @@ void Jacobi_Solver(double* x,const double* b)
 	double* xr=x;			////read buffer pointer
 	double* xw=buf;			////write buffer pointer
 	int iter_num=0;			////iteration number
-	int max_num=1000;		////max iteration number
+	int max_num=1e5;		////max iteration number
 	double residual=0.0;	////residual
 
 	do{
@@ -71,7 +71,7 @@ void Jacobi_Solver(double* x,const double* b)
 		xr=xw;
 		xw=swap;
 		iter_num++;
-	}while(residual>tolerance||iter_num==max_num);	
+	}while(residual>tolerance&&iter_num<max_num);	
 
 	x=xr;
 
@@ -83,7 +83,7 @@ void Jacobi_Solver(double* x,const double* b)
 void Gauss_Seidel_Solver(double* x,const double* b)
 {
 	int iter_num=0;			////iteration number
-	int max_num=1000;		////max iteration number
+	int max_num=1e5;		////max iteration number
 	double residual=0.0;	////residual
 
 	do{
@@ -104,7 +104,7 @@ void Gauss_Seidel_Solver(double* x,const double* b)
 
 		if(verbose)cout<<"res: "<<residual<<endl;
 		iter_num++;
-	}while(residual>tolerance||iter_num==max_num);	
+	}while(residual>tolerance&&iter_num<max_num);	
 
 	cout<<"Gauss-Seidel solver converges in "<<iter_num<<" iterations, with residual "<<residual<<endl;
 }
@@ -112,7 +112,7 @@ void Gauss_Seidel_Solver(double* x,const double* b)
 void Red_Black_Gauss_Seidel_Solver(double* x,const double* b)
 {
 	int iter_num=0;			////iteration number
-	int max_num=1000;		////max iteration number
+	int max_num=1e5;		////max iteration number
 	double residual=0.0;	////residual
 
 	do{
@@ -142,7 +142,7 @@ void Red_Black_Gauss_Seidel_Solver(double* x,const double* b)
 
 		if(verbose)cout<<"res: "<<residual<<endl;
 		iter_num++;
-	}while(residual>tolerance||iter_num==max_num);	
+	}while(residual>tolerance&&iter_num<max_num);	
 
 	cout<<"Red-Black Gauss-Seidel solver converges in "<<iter_num<<" iterations, with residual "<<residual<<endl;
 }
@@ -183,6 +183,7 @@ void Test_CPU_Solvers()
 			cout<<std::endl;
 		}	
 	}
+	cout<<"\n\n";
 
 	//////////////////////////////////////////////////////////////////////////
 	////test Gauss-Seidel
@@ -205,6 +206,7 @@ void Test_CPU_Solvers()
 			cout<<std::endl;
 		}	
 	}
+	cout<<"\n\n";
 
 	//////////////////////////////////////////////////////////////////////////
 	////test Red-Black Gauss-Seidel
@@ -227,6 +229,7 @@ void Test_CPU_Solvers()
 			cout<<std::endl;
 		}	
 	}
+	cout<<"\n\n";
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -335,4 +338,3 @@ int main()
 
 	return 0;
 }
-
