@@ -244,6 +244,7 @@ __global__ void GPU_Jacobi(double* x, double* ghost, double* b)
 	// shared memory prep, include ghost regions
 	__shared__ double shared_x[18][18];
 	// registers prep
+	double my_b = 0;
 	int absoluteY = blockIdx.y*blockDim.x+threadIdx.y; // not blockDimy to allow for the overlap
 	int thr_per_row = blockDim.x*gridDim.x;
 	int absoluteX = blockIdx.x*blockDim.x+threadIdx.x;
@@ -260,26 +261,30 @@ __global__ void GPU_Jacobi(double* x, double* ghost, double* b)
 	// PHASE TWO: half-warps 0-15 fetch global b, remember to add 1 to row/col in shared now
 	// while half-warps 16-17 fetch the ghost columns from ghost
 	if (threadIdx.y < 16) {
-		double my_b = b[I(absoluteY, absoluteX)];
+		// my_b = b[I(absoluteY, absoluteX)];
+		my_b = b[absoluteY*thr_per_row + absoluteX];
 	} else {
 		int finalwarp_idx = threadIdx.y - 16;
 		shared_x[threadIdx.x+1][finalwarp_idx*17] = ghost[n*(blockIdx.x*2 + finalwarp_idx*3) + 
 			threadIdx.x + blockDim.x*blockIdx.y];
 	}
 	__syncthreads();
-	if (threadIdx.x + threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
-		for (int i = 0; i < 18; i++) {
-			for (int j = 0; j < 18; j++) {
-				printf("%.0lf, \t",shared_x[i][j]);
-			}
-			printf("\n");
-		}
-		// printf("thr/blk: %d\n", thr_per_block);
-		// printf("blockidx: %d\n", block_idx);
-		// printf("thridx: %d\n", thread_idx);
-		// printf("final idx: %d\n", block_idx*thr_per_block + thread_idx);
-		// printf("res: %.0lf\n", x[block_idx*thr_per_block + thread_idx]);
-	}
+	// if (threadIdx.x + threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+	// 	for (int i = 0; i < 18; i++) {
+	// 		for (int j = 0; j < 18; j++) {
+	// 			printf("%.0lf, \t",shared_x[i][j]);
+	// 		}
+	// 		printf("\n");
+	// 	}
+	// 	// printf("thr/blk: %d\n", thr_per_block);
+	// 	// printf("blockidx: %d\n", block_idx);
+	// 	// printf("thridx: %d\n", thread_idx);
+	// 	// printf("final idx: %d\n", block_idx*thr_per_block + thread_idx);
+	// 	// printf("res: %.0lf\n", x[block_idx*thr_per_block + thread_idx]);
+	// }
+	// if (blockIdx.x == 0 && blockIdx.y == 0) {
+	// 	printf("%d  %d, b: %.0lf\n", absoluteY, absoluteX, my_b);
+	// }
 }
 
 
@@ -300,7 +305,8 @@ void Test_GPU_Solver()
 	////initialize x and b
 	for(int i=-1;i<=n;i++){
 		for(int j=-1;j<=n;j++){
-			b[I(i,j)]=4.0;		////set the values for the right-hand side
+			// b[I(i,j)]=4.0;		////set the values for the right-hand side
+			b[I(i,j)]=100*i+j;
 		}
 	}
 	for(int i=-1;i<=n;i++){
@@ -319,15 +325,24 @@ void Test_GPU_Solver()
 	cudaDeviceSynchronize();
 	cudaEventRecord(start);
 
-	cout<<"\nactual x:\n";
-	for(int i=-1;i<n+1;i++){
-		for(int j=-1;j<n+1;j++){
-			cout<<x[I(i,j)]<<", \t";
-		}
-		cout<<std::endl;
-	}
-	cout<<std::endl;
-	cout<<std::endl;
+	// cout<<"\nactual x:\n";
+	// for(int i=-1;i<n+1;i++){
+	// 	for(int j=-1;j<n+1;j++){
+	// 		cout<<x[I(i,j)]<<", \t";
+	// 	}
+	// 	cout<<std::endl;
+	// }
+	// cout<<std::endl;
+	// cout<<std::endl;
+	// cout<<"\nactual b:\n";
+	// for(int i=-1;i<n+1;i++){
+	// 	for(int j=-1;j<n+1;j++){
+	// 		cout<<b[I(i,j)]<<", \t";
+	// 	}
+	// 	cout<<std::endl;
+	// }
+	// cout<<std::endl;
+	// cout<<std::endl;
 
 	// reformat memory to avoid column access
 	const int my_s = (n+2)*n;
@@ -340,10 +355,29 @@ void Test_GPU_Solver()
 		}
 		// cout<<std::endl;
 	}
+	// reformat memory to avoid column access
+	const int my_b = n*n;
+	double* b_host = new double[my_b];
+	for(int i = 0;i < n;i++){
+		for(int j = 0;j < n;j++){
+			b_host[i*n+j] = b[I(i,j)];
+			// cout<<x_host[this_i*n+j]<<", \t";
+		}
+		// cout<<std::endl;
+	}
 	
 	// for(int i = 0;i < n+2;i++){
 	// 	for(int j = 0;j < n;j++){
 	// 		cout<<x_host[i*n+j]<<", \t";
+	// 	}
+	// 	cout<<std::endl;
+	// }
+	// cout<<std::endl;
+	// cout<<std::endl;
+
+	// for(int i = 0;i < n;i++){
+	// 	for(int j = 0;j < n;j++){
+	// 		cout<<b_host[i*n+j]<<", \t";
 	// 	}
 	// 	cout<<std::endl;
 	// }
@@ -368,21 +402,21 @@ void Test_GPU_Solver()
 	}
 	// cout<<std::endl;
 
-	for (int i = 0; i < ghost_cols; i++) {
-		for (int j = 0; j < n; j++) {
-			cout<<ghost_host[i*n+j]<<", \t";
-		}
-		cout<<std::endl;
-	}
-	cout<<std::endl;
-	cout<<std::endl;
+	// for (int i = 0; i < ghost_cols; i++) {
+	// 	for (int j = 0; j < n; j++) {
+	// 		cout<<ghost_host[i*n+j]<<", \t";
+	// 	}
+	// 	cout<<std::endl;
+	// }
+	// cout<<std::endl;
+	// cout<<std::endl;
 
 	double* x_dev = nullptr;
 	cudaMalloc((void **)&x_dev, my_s*sizeof(double));
 	cudaMemcpy(x_dev, x_host, my_s*sizeof(double), cudaMemcpyHostToDevice);
 	double* b_dev = nullptr;
-	cudaMalloc((void **)&b_dev, s*sizeof(double));
-	cudaMemcpy(b_dev, b, s*sizeof(double), cudaMemcpyHostToDevice);
+	cudaMalloc((void **)&b_dev, my_b*sizeof(double));
+	cudaMemcpy(b_dev, b_host, my_b*sizeof(double), cudaMemcpyHostToDevice);
 	double* ghost_dev = nullptr;
 	cudaMalloc((void **)&ghost_dev, ghost_cols*n*sizeof(double));
 	cudaMemcpy(ghost_dev, ghost_host, ghost_cols*n*sizeof(double), cudaMemcpyHostToDevice);
