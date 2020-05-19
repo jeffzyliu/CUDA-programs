@@ -12,10 +12,8 @@ using namespace std;
 
 namespace name
 {
-	std::string team="";
-	std::string author_1="Name_1";
-	std::string author_2="Name_2";
-	std::string author_3="Name_3";	////optional
+	std::string team="using_namespace_std;";
+	std::string author_1="Jeff Liu";
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -28,12 +26,12 @@ namespace name
 ////You will need to use these parameters or macros in your GPU implementations
 //////////////////////////////////////////////////////////////////////////
 
-const int n=8;							////grid size, we will change this value to up to 256 to test your code
+const int n=32;							////grid size, we will change this value to up to 256 to test your code
 const int g=1;							////padding size
 const int s=(n+2*g)*(n+2*g);			////array size
 #define I(i,j) (i+g)*(n+2*g)+(j+g)		////2D coordinate -> array index
 #define B(i,j) i<0||i>=n||j<0||j>=n		////check boundary
-const bool verbose=true;				////set false to turn off print for x and residual
+const bool verbose=false;				////set false to turn off print for x and residual
 const double tolerance=1e-3;			////tolerance for the iterative solver
 
 //////////////////////////////////////////////////////////////////////////
@@ -239,6 +237,51 @@ void Test_CPU_Solvers()
 
 //////////////////////////////////////////////////////////////////////////
 ////TODO 1: your GPU variables and functions start here
+// #define blockX 16
+// #define blockY 18
+__global__ void GPU_Jacobi(double* x, double* ghost, double* b)
+{
+	// shared memory prep, include ghost regions
+	__shared__ double shared_x[18][18];
+	// registers prep
+	int absoluteY = blockIdx.y*blockDim.x+threadIdx.y; // not blockDimy to allow for the overlap
+	int thr_per_row = blockDim.x*gridDim.x;
+	int absoluteX = blockIdx.x*blockDim.x+threadIdx.x;
+	// int thr_per_block = blockDim.x*blockDim.x; // not y to allow for the overlap
+	// int block_idx = gridDim.x*blockIdx.y + blockIdx.x;
+	// int thread_idx = blockDim.x*threadIdx.y + threadIdx.x;
+	
+	// PHASE ONE: load 18x16 middle columns with aligned, coalesced fetch
+	// shared_x[threadIdx.y][threadIdx.x+1] = x[block_idx*thr_per_block + thread_idx];
+	// shared_x[threadIdx.y][threadIdx.x+1] = x[(blockIdx.y*blockDim.y+threadIdx.y)*blockDim.x + blockIdx.x*blockDim.x+threadIdx.x];
+	shared_x[threadIdx.y][threadIdx.x+1] = x[absoluteY*thr_per_row + absoluteX];
+	__syncthreads();
+
+	// PHASE TWO: half-warps 0-15 fetch global b, remember to add 1 to row/col in shared now
+	// while half-warps 16-17 fetch the ghost columns from ghost
+	if (threadIdx.y < 16) {
+		double my_b = b[I(absoluteY, absoluteX)];
+	} else {
+		int finalwarp_idx = threadIdx.y - 16;
+		shared_x[threadIdx.x+1][finalwarp_idx*17] = ghost[n*(blockIdx.x*2 + finalwarp_idx*3) + 
+			threadIdx.x + blockDim.x*blockIdx.y];
+	}
+	__syncthreads();
+	if (threadIdx.x + threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+		for (int i = 0; i < 18; i++) {
+			for (int j = 0; j < 18; j++) {
+				printf("%.0lf, \t",shared_x[i][j]);
+			}
+			printf("\n");
+		}
+		// printf("thr/blk: %d\n", thr_per_block);
+		// printf("blockidx: %d\n", block_idx);
+		// printf("thridx: %d\n", thread_idx);
+		// printf("final idx: %d\n", block_idx*thr_per_block + thread_idx);
+		// printf("res: %.0lf\n", x[block_idx*thr_per_block + thread_idx]);
+	}
+}
+
 
 ////Your implementations end here
 //////////////////////////////////////////////////////////////////////////
@@ -263,7 +306,9 @@ void Test_GPU_Solver()
 	for(int i=-1;i<=n;i++){
 		for(int j=-1;j<=n;j++){
 			if(B(i,j))
-				x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
+				x[I(i,j)]=(double)(i*i+j*j);
+			else
+				x[I(i,j)]=100*i+j;	////set boundary condition for x
 		}
 	}
 
@@ -274,13 +319,91 @@ void Test_GPU_Solver()
 	cudaDeviceSynchronize();
 	cudaEventRecord(start);
 
+	cout<<"\nactual x:\n";
+	for(int i=-1;i<n+1;i++){
+		for(int j=-1;j<n+1;j++){
+			cout<<x[I(i,j)]<<", \t";
+		}
+		cout<<std::endl;
+	}
+	cout<<std::endl;
+	cout<<std::endl;
+
+	// reformat memory to avoid column access
+	const int my_s = (n+2)*n;
+	double* x_host = new double[my_s];
+	for(int i = -1;i <= n;i++){
+		for(int j = 0;j < n;j++){
+			int this_i = i+1;
+			x_host[this_i*n+j] = x[I(i,j)];
+			// cout<<x_host[this_i*n+j]<<", \t";
+		}
+		// cout<<std::endl;
+	}
+	
+	// for(int i = 0;i < n+2;i++){
+	// 	for(int j = 0;j < n;j++){
+	// 		cout<<x_host[i*n+j]<<", \t";
+	// 	}
+	// 	cout<<std::endl;
+	// }
+	// cout<<std::endl;
+	// cout<<std::endl;
+
+	const int ghost_cols = n/8+2;
+	double* ghost_host = new double[ghost_cols*n];
+	for (int j = 0; j < n; j++) {
+		ghost_host[j] = x[I(j,-1)];
+		ghost_host[(ghost_cols-1)*n+j] = x[I(j,n)];
+	}
+
+	for (int j = 0; j < n; j += 16) {
+		int col = j/8;
+		for (int i = 0; i < n; i++) {
+			// cout<<col+1<<" "<<col+2<<" "<<i<<", ";
+			ghost_host[(col+1)*n+i] = x[I(i,j)];
+			ghost_host[(col+2)*n+i] = x[I(i,j+15)];
+		}
+		// cout<<std::endl;
+	}
+	// cout<<std::endl;
+
+	for (int i = 0; i < ghost_cols; i++) {
+		for (int j = 0; j < n; j++) {
+			cout<<ghost_host[i*n+j]<<", \t";
+		}
+		cout<<std::endl;
+	}
+	cout<<std::endl;
+	cout<<std::endl;
+
+	double* x_dev = nullptr;
+	cudaMalloc((void **)&x_dev, my_s*sizeof(double));
+	cudaMemcpy(x_dev, x_host, my_s*sizeof(double), cudaMemcpyHostToDevice);
+	double* b_dev = nullptr;
+	cudaMalloc((void **)&b_dev, s*sizeof(double));
+	cudaMemcpy(b_dev, b, s*sizeof(double), cudaMemcpyHostToDevice);
+	double* ghost_dev = nullptr;
+	cudaMalloc((void **)&ghost_dev, ghost_cols*n*sizeof(double));
+	cudaMemcpy(ghost_dev, ghost_host, ghost_cols*n*sizeof(double), cudaMemcpyHostToDevice);
+
+
 	//////////////////////////////////////////////////////////////////////////
 	////TODO 2: call your GPU functions here
 	////Requirement: You need to copy data from the CPU arrays, conduct computations on the GPU, and copy the values back from GPU to CPU
 	////The final positions should be stored in the same place as the CPU function, i.e., the array of x
 	////The correctness of your simulation will be evaluated by the residual (<1e-3)
 	//////////////////////////////////////////////////////////////////////////
+	int block_size = 16;
+	int grid_dim = n/block_size;
+	// cout << block_size <<endl;
+	// cout <<grid_dim << endl;
 
+	GPU_Jacobi<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev, ghost_dev, b_dev);
+
+	// cout << "host "<< x_host[512] << endl;
+	// cout << "original "<<x[I(15,0)] << endl;
+	// cout << "original "<<I(15,0) << endl;
 	cudaEventRecord(end);
 	cudaEventSynchronize(end);
 	cudaEventElapsedTime(&gpu_time,start,end);
@@ -290,27 +413,27 @@ void Test_GPU_Solver()
 	//////////////////////////////////////////////////////////////////////////
 
 	////output x
-	if(verbose){
-		cout<<"\n\nx for your GPU solver:\n";
-		for(int i=0;i<n;i++){
-			for(int j=0;j<n;j++){
-				cout<<x[I(i,j)]<<", ";
-			}
-			cout<<std::endl;
-		}	
-	}
+	// if(verbose){
+	// 	cout<<"\n\nx for your GPU solver:\n";
+	// 	for(int i=0;i<n;i++){
+	// 		for(int j=0;j<n;j++){
+	// 			cout<<x[I(i,j)]<<", ";
+	// 		}
+	// 		cout<<std::endl;
+	// 	}	
+	// }
 
-	////calculate residual
-	double residual=0.0;
-	for(int i=0;i<n;i++){
-		for(int j=0;j<n;j++){
-			residual+=pow(4.0*x[I(i,j)]-x[I(i-1,j)]-x[I(i+1,j)]-x[I(i,j-1)]-x[I(i,j+1)]-b[I(i,j)],2);
-		}
-	}
-	cout<<"\n\nresidual for your GPU solver: "<<residual<<endl;
+	// ////calculate residual
+	// double residual=0.0;
+	// for(int i=0;i<n;i++){
+	// 	for(int j=0;j<n;j++){
+	// 		residual+=pow(4.0*x[I(i,j)]-x[I(i-1,j)]-x[I(i+1,j)]-x[I(i,j-1)]-x[I(i,j+1)]-b[I(i,j)],2);
+	// 	}
+	// }
+	// cout<<"\n\nresidual for your GPU solver: "<<residual<<endl;
 
-	out<<"R0: "<<residual<<endl;
-	out<<"T1: "<<gpu_time<<endl;
+	// out<<"R0: "<<residual<<endl;
+	// out<<"T1: "<<gpu_time<<endl;
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -333,7 +456,7 @@ int main()
 		return 0;
 	}
 
-	Test_CPU_Solvers();	////You may comment out this line to run your GPU solver only
+	// Test_CPU_Solvers();	////You may comment out this line to run your GPU solver only
 	Test_GPU_Solver();	////Test function for your own GPU implementation
 
 	return 0;
