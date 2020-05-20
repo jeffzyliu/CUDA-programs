@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <fstream>
-
+#include <chrono>
 #include <thrust/device_vector.h>
 #include <thrust/copy.h>
 #include <thrust/reduce.h>
@@ -15,7 +15,7 @@
 // #include <thrust/sort.h>
 // #include <thrust/extrema.h>
 // #include <thrust/inner_product.h>
-
+using namespace std::chrono;
 
 //////////////////////////////////////////////////////////////////////////
 ////TODO 0: Please replace the following strings with your team name and author names
@@ -38,7 +38,7 @@ namespace name
 ////You will need to use these parameters or macros in your GPU implementations
 //////////////////////////////////////////////////////////////////////////
 
-const int n=1024;							////grid size, we will change this value to up to 256 to test your code
+const int n=128;							////grid size, we will change this value to up to 256 to test your code
 const int g=1;							////padding size
 const int s=(n+2*g)*(n+2*g);			////array size
 #define I(i,j) (i+g)*(n+2*g)+(j+g)		////2D coordinate -> array index
@@ -50,6 +50,7 @@ const double tolerance=1e-3;			////tolerance for the iterative solver
 ////The following are three sample implementations for CPU iterative solvers
 void Jacobi_Solver(double* x,const double* b)
 {
+	
 	double* buf=new double[s];
 	memcpy(buf,x,sizeof(double)*s);
 	double* xr=x;			////read buffer pointer
@@ -58,7 +59,7 @@ void Jacobi_Solver(double* x,const double* b)
 	int max_num=1e5;		////max iteration number
 	// int max_num = 20;
 	double residual=10.0;	////residual
-
+	auto cpu_start = system_clock::now();
 	do{
 		////update x values using the Jacobi iterative scheme
 		for(int i=0;i<n;i++){
@@ -87,6 +88,9 @@ void Jacobi_Solver(double* x,const double* b)
 		iter_num++;
 	}while(residual>tolerance&&iter_num<max_num);
 
+	auto cpu_end = system_clock::now();
+	duration<double> cpu_time=cpu_end-cpu_start;
+	std::cout<<"CPU runtime: "<<cpu_time.count()*1000.<<" ms."<<std::endl;
 	x=xw;
 
 	if(verbose){
@@ -280,15 +284,12 @@ void Test_CPU_Solvers()
 }
 
 //////////////////////////////////////////////////////////////////////////
-////TODO 1: your GPU variables and functions start here
-// #define blockX 16
-// #define blockY 18
+
 __global__ void GPU_Jacobi(double* x, double* ghost, double* b,
-							double* x_out, double* ghost_out)
+							double* x_out, double* ghost_out, double* res_out)
 {
 	// shared memory prep, include ghost regions
 	__shared__ double shared_x[18][18];
-	// __shared__ double result_x[16][16];
 
 	// registers prep
 	double my_b = 0;
@@ -303,24 +304,17 @@ __global__ void GPU_Jacobi(double* x, double* ghost, double* b,
 	double left = 0;
 	double right = 0;
 	double bottom = 0;
-
+	
 	int adjust_y = 0;
 	int adjust_x = 0;
 
-	// int thr_per_block = blockDim.x*blockDim.x; // not y to allow for the overlap
-	// int block_idx = gridDim.x*blockIdx.y + blockIdx.x;
-	// int thread_idx = blockDim.x*threadIdx.y + threadIdx.x;
-	
 	// PHASE ONE: load 18x16 middle columns with aligned, coalesced fetch
-	// shared_x[threadIdx.y][threadIdx.x+1] = x[block_idx*thr_per_block + thread_idx];
-	// shared_x[threadIdx.y][threadIdx.x+1] = x[(blockIdx.y*blockDim.y+threadIdx.y)*blockDim.x + blockIdx.x*blockDim.x+threadIdx.x];
 	shared_x[threadIdx.y][threadIdx.x+1] = x[absoluteY*thr_per_row + absoluteX];
 	__syncthreads();
 
 	// PHASE TWO: half-warps 0-15 fetch global b
 	// while half-warps 16-17 fetch the ghost columns from ghost
 	if (threadIdx.y < 16) {
-		// my_b = b[I(absoluteY, absoluteX)];
 		my_b = b[absoluteY*thr_per_row + absoluteX];
 	} else {
 		finalwarp_idx = threadIdx.y - 16;
@@ -328,23 +322,7 @@ __global__ void GPU_Jacobi(double* x, double* ghost, double* b,
 			threadIdx.x + blockDim.x*blockIdx.y];
 	}
 	__syncthreads();
-	// if (threadIdx.x + threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
-	// 	for (int i = 0; i < 18; i++) {
-	// 		for (int j = 0; j < 18; j++) {
-	// 			printf("%.0lf, \t",shared_x[i][j]);
-	// 		}
-	// 		printf("\n");
-	// 	}
-	// 	// printf("thr/blk: %d\n", thr_per_block);
-	// 	// printf("blockidx: %d\n", block_idx);
-	// 	// printf("thridx: %d\n", thread_idx);
-	// 	// printf("final idx: %d\n", block_idx*thr_per_block + thread_idx);
-	// 	// printf("res: %.0lf\n", x[block_idx*thr_per_block + thread_idx]);
-	// }
-	// if (blockIdx.x == 0 && blockIdx.y == 0) {
-	// 	printf("%d  %d, b: %.0lf\n", absoluteY, absoluteX, my_b);
-	// }
-
+	
 	// PHASE THREE: half-warps 0-15 use adjusted indexes to fetch from shared into registers,
 	// and calculate their results
 	if (threadIdx.y < 16) {
@@ -375,13 +353,21 @@ __global__ void GPU_Jacobi(double* x, double* ghost, double* b,
 		ghost_out[n*(blockIdx.x*2 + 1+finalwarp_idx) + threadIdx.x + blockDim.x*blockIdx.y] =
 			shared_x[threadIdx.x+1][1+finalwarp_idx*15];
 	}
-	// if (threadIdx.x + threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 1) {
-	// 	for (int i = 0; i < 18; i++) {
-	// 		for (int j = 0; j < 18; j++) {
-	// 			printf("%.0lf, \t",shared_x[i][j]);
-	// 		}
-	// 		printf("\n");
-	// 	}
+	__syncthreads();
+
+	//// PHASE SIX, UNUSED
+	//// half-warps 0-16 calculate residual estimates and write to global memory
+	// double me = 0;
+	// if (threadIdx.y < 16) {
+	// 	adjust_x = threadIdx.x+1;
+	// 	adjust_y = threadIdx.y+1;
+	// 	top = shared_x[adjust_y-1][adjust_x];
+	// 	left = shared_x[adjust_y][adjust_x-1];
+	// 	right = shared_x[adjust_y][adjust_x+1];
+	// 	bottom = shared_x[adjust_y+1][adjust_x];
+	// 	me = shared_x[adjust_y][adjust_x];
+	// 	my_res = 4*me - top - left - right - bottom - my_b;
+	// 	res_out[(absoluteY)*thr_per_row + absoluteX] = my_res*my_res;
 	// }
 }
 
@@ -408,21 +394,14 @@ __global__ void GPU_Residual_Helper(double* x, double* ghost, double* b, double*
 
 	int adjust_y = 0;
 	int adjust_x = 0;
-
-	// int thr_per_block = blockDim.x*blockDim.x; // not y to allow for the overlap
-	// int block_idx = gridDim.x*blockIdx.y + blockIdx.x;
-	// int thread_idx = blockDim.x*threadIdx.y + threadIdx.x;
 	
 	// PHASE ONE: load 18x16 middle columns with aligned, coalesced fetch
-	// shared_x[threadIdx.y][threadIdx.x+1] = x[block_idx*thr_per_block + thread_idx];
-	// shared_x[threadIdx.y][threadIdx.x+1] = x[(blockIdx.y*blockDim.y+threadIdx.y)*blockDim.x + blockIdx.x*blockDim.x+threadIdx.x];
 	shared_x[threadIdx.y][threadIdx.x+1] = x[absoluteY*thr_per_row + absoluteX];
 	__syncthreads();
 
 	// PHASE TWO: half-warps 0-15 fetch global b
 	// while half-warps 16-17 fetch the ghost columns from ghost
 	if (threadIdx.y < 16) {
-		// my_b = b[I(absoluteY, absoluteX)];
 		my_b = b[absoluteY*thr_per_row + absoluteX];
 	} else {
 		finalwarp_idx = threadIdx.y - 16;
@@ -432,7 +411,7 @@ __global__ void GPU_Residual_Helper(double* x, double* ghost, double* b, double*
 	__syncthreads();
 
 	// PHASE THREE: half-warps 0-15 use adjusted indexes to fetch from shared into registers,
-	// and calculate their results
+	// and calculate their results, store to global
 	if (threadIdx.y < 16) {
 		adjust_x = threadIdx.x+1;
 		adjust_y = threadIdx.y+1;
@@ -442,12 +421,7 @@ __global__ void GPU_Residual_Helper(double* x, double* ghost, double* b, double*
 		bottom = shared_x[adjust_y+1][adjust_x];
 		me = shared_x[adjust_y][adjust_x];
 		my_res = 4*me - top - left - right - bottom - my_b;
-	}
-	__syncthreads();
 
-	if (threadIdx.y < 16) {
-		// residual[absoluteY][absoluteY] = my_res*my_res;
-		// atomicAdd(&res_out[0], my_res*my_res);
 		res_out[(absoluteY)*thr_per_row + absoluteX] = my_res*my_res;
 	}
 }
@@ -614,27 +588,22 @@ void Test_GPU_Solver()
 	int dest = 1;
 
 	int iter_num=0;			////iteration number
-	// int max_num=1e5;		////max iteration number
-	int max_num = 10;
+	int max_num=1e5;		////max iteration number
+	// int max_num = 10;
 	double residual=10.0;	////residual
 
-	for (; residual > tolerance && iter_num < max_num; iter_num++) {
-		// residual = 0.0;
+	for (; /*residual > tolerance && */iter_num < 57001 /*max_num*/; iter_num++) {
 		src = iter_num & 1;
 		dest = (src + 1) & 1;
-		GPU_Jacobi<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev[src], ghost_dev[src], b_dev, x_dev[dest], ghost_dev[dest]);
-		res_raw=thrust::raw_pointer_cast(res_thrust.data());
-		GPU_Residual_Helper<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev[dest], ghost_dev[dest], b_dev, res_raw);
-		// residual = res_raw[0];
-		// cudaMemcpy(res_host, res_raw, n*n*sizeof(double), cudaMemcpyDeviceToHost);
-		// for (int i = 0; i < n*n; i++) {
-		// 	residual += res_host[i];
-		// }
-		// thrust::copy(res_dev,res_dev+n*n,res_thrust.begin());
-		residual = thrust::reduce(res_thrust.begin(),res_thrust.end(),(double)0,thrust::plus<double>());
-		// std::cout <<typeid(residual).name()<< std::endl;
-		if(verbose)std::cout<<"res: "<<residual<<std::endl;
+		GPU_Jacobi<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev[src], ghost_dev[src], b_dev, x_dev[dest], ghost_dev[dest], res_raw);
+		if (iter_num % 500 == 0) {
+			res_raw=thrust::raw_pointer_cast(res_thrust.data());
+			GPU_Residual_Helper<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev[dest], ghost_dev[dest], b_dev, res_raw);
+			residual = thrust::reduce(res_thrust.begin(),res_thrust.end(),(double)0,thrust::plus<double>());
+			if(verbose)std::cout<<"res: "<<residual<<std::endl;
+		}
 	}
+	// std::cout<<"res: "<<residual<<std::endl;
 
 	// std::cout << "host "<< x_host[512] <<std::endl;
 	// std::cout << "original "<<x[I(15,0)] <<std::endl;
