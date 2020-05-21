@@ -88,13 +88,10 @@ void Jacobi_Solver(double* x,const double* b)
 		iter_num++;
 	}while(residual>tolerance&&iter_num<max_num);
 
-	auto cpu_end = system_clock::now();
-	duration<double> cpu_time=cpu_end-cpu_start;
-	std::cout<<"CPU runtime: "<<cpu_time.count()*1000.<<" ms."<<std::endl;
-	x=xw;
+	// x=xw;
 
 	if(verbose){
-		// std::cout<<"\n\nx for Jacobi:\n";
+		std::cout<<"\n\nx for Jacobi:\n";
 		for(int i=-1;i<=n;i++){
 			for(int j=-1;j<=n;j++){
 				printf("%.0lf, \t", xr[I(i,j)]);
@@ -104,8 +101,11 @@ void Jacobi_Solver(double* x,const double* b)
 	}
 
 	
-	// x=xr;
-	// std::cout<<"Jacobi solver converges in "<<iter_num<<" iterations, with residual "<<residual<<std::endl;
+	x=xr;
+	std::cout<<"Jacobi solver converges in "<<iter_num<<" iterations, with residual "<<residual<<std::endl;
+	auto cpu_end = system_clock::now();
+	duration<double> cpu_time=cpu_end-cpu_start;
+	std::cout<<"CPU runtime: "<<cpu_time.count()*1000.<<" ms."<<std::endl;
 
 	delete [] buf;
 }
@@ -115,7 +115,7 @@ void Gauss_Seidel_Solver(double* x,const double* b)
 	int iter_num=0;			////iteration number
 	int max_num=1e5;		////max iteration number
 	double residual=0.0;	////residual
-
+	auto cpu_start = system_clock::now();
 	do{
 		////update x values using the Gauss-Seidel iterative scheme
 		for(int i=0;i<n;i++){
@@ -137,6 +137,9 @@ void Gauss_Seidel_Solver(double* x,const double* b)
 	}while(residual>tolerance&&iter_num<max_num);	
 
 	std::cout<<"Gauss-Seidel solver converges in "<<iter_num<<" iterations, with residual "<<residual<<std::endl;
+	auto cpu_end = system_clock::now();
+	duration<double> cpu_time=cpu_end-cpu_start;
+	std::cout<<"CPU runtime: "<<cpu_time.count()*1000.<<" ms."<<std::endl;
 }
 
 void Red_Black_Gauss_Seidel_Solver(double* x,const double* b)
@@ -144,7 +147,7 @@ void Red_Black_Gauss_Seidel_Solver(double* x,const double* b)
 	int iter_num=0;			////iteration number
 	int max_num=1e5;		////max iteration number
 	double residual=0.0;	////residual
-
+	auto cpu_start = system_clock::now();
 	do{
 		////red G-S
 		for(int i=0;i<n;i++){
@@ -175,6 +178,9 @@ void Red_Black_Gauss_Seidel_Solver(double* x,const double* b)
 	}while(residual>tolerance&&iter_num<max_num);	
 
 	std::cout<<"Red-Black Gauss-Seidel solver converges in "<<iter_num<<" iterations, with residual "<<residual<<std::endl;
+	auto cpu_end = system_clock::now();
+	duration<double> cpu_time=cpu_end-cpu_start;
+	std::cout<<"CPU runtime: "<<cpu_time.count()*1000.<<" ms."<<std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -187,95 +193,95 @@ void Test_CPU_Solvers()
 	double* x=new double[s];
 	memset(x,0x0000,sizeof(double)*s);
 	double* b=new double[s];
-	// for(int i=-1;i<=n;i++){
-	// 	for(int j=-1;j<=n;j++){
-	// 		b[I(i,j)]=4.0;		////set the values for the right-hand side
-	// 	}
-	// }
-
-	// //////////////////////////////////////////////////////////////////////////
-	// ////test Jacobi
-	// for(int i=-1;i<=n;i++){
-	// 	for(int j=-1;j<=n;j++){
-	// 		if(B(i,j))
-	// 			x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
-	// 	}
-	// }
-	/////////////////////////////////////////////////////////////////////////
-	////initialize x and b
 	for(int i=-1;i<=n;i++){
 		for(int j=-1;j<=n;j++){
-			// b[I(i,j)]=4.0;		////set the values for the right-hand side
-			b[I(i,j)]=100*i+j;
+			b[I(i,j)]=4.0;		////set the values for the right-hand side
 		}
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	////test Jacobi
 	for(int i=-1;i<=n;i++){
 		for(int j=-1;j<=n;j++){
 			if(B(i,j))
-				x[I(i,j)]=(double)(i*i+j*j); ////set boundary condition for x
-			else
-				x[I(i,j)]=100*i+j;	
+				x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
 		}
 	}
+	/////////////////////////////////////////////////////////////////////////
+	////initialize x and b
+	// for(int i=-1;i<=n;i++){
+	// 	for(int j=-1;j<=n;j++){
+	// 		b[I(i,j)]=4.0;		////set the values for the right-hand side
+	// 		// b[I(i,j)]=100*i+j;
+	// 	}
+	// }
+	// for(int i=-1;i<=n;i++){
+	// 	for(int j=-1;j<=n;j++){
+	// 		if(B(i,j))
+	// 			x[I(i,j)]=(double)(i*i+j*j); ////set boundary condition for x
+	// 		// else
+	// 		// 	x[I(i,j)]=100*i+j;	
+	// 	}
+	// }
 
 	Jacobi_Solver(x,b);
 
-	// if(verbose){
-		// std::cout<<"\n\nx for Jacobi:\n";
-		// for(int i=0;i<n;i++){
-		// 	for(int j=0;j<n;j++){
-		// 		std::cout<<x[I(i,j)]<<", ";
-		// 	}
-		// 	std::cout<<std::endl;
-		// }	
-	// }
+	if(verbose){
+		std::cout<<"\n\nx for Jacobi:\n";
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
+				std::cout<<x[I(i,j)]<<", ";
+			}
+			std::cout<<std::endl;
+		}	
+	}
 	std::cout<<"\n\n";
 
 	// //////////////////////////////////////////////////////////////////////////
-	// ////test Gauss-Seidel
-	// memset(x,0x0000,sizeof(double)*s);
-	// for(int i=-1;i<=n;i++){
-	// 	for(int j=-1;j<=n;j++){
-	// 		if(B(i,j))
-	// 			x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
-	// 	}
-	// }
+	////test Gauss-Seidel
+	memset(x,0x0000,sizeof(double)*s);
+	for(int i=-1;i<=n;i++){
+		for(int j=-1;j<=n;j++){
+			if(B(i,j))
+				x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
+		}
+	}
 
-	// Gauss_Seidel_Solver(x,b);
+	Gauss_Seidel_Solver(x,b);
 
-	// if(verbose){
-	// 	std::cout<<"\n\nx for Gauss-Seidel:\n";
-	// 	for(int i=0;i<n;i++){
-	// 		for(int j=0;j<n;j++){
-	// 			std::cout<<x[I(i,j)]<<", ";
-	// 		}
-	// 		std::cout<<std::endl;
-	// 	}	
-	// }
-	// std::cout<<"\n\n";
+	if(verbose){
+		std::cout<<"\n\nx for Gauss-Seidel:\n";
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
+				std::cout<<x[I(i,j)]<<", ";
+			}
+			std::cout<<std::endl;
+		}	
+	}
+	std::cout<<"\n\n";
 
-	// //////////////////////////////////////////////////////////////////////////
-	// ////test Red-Black Gauss-Seidel
-	// memset(x,0x0000,sizeof(double)*s);
-	// for(int i=-1;i<=n;i++){
-	// 	for(int j=-1;j<=n;j++){
-	// 		if(B(i,j))
-	// 			x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
-	// 	}
-	// }
+	//////////////////////////////////////////////////////////////////////////
+	////test Red-Black Gauss-Seidel
+	memset(x,0x0000,sizeof(double)*s);
+	for(int i=-1;i<=n;i++){
+		for(int j=-1;j<=n;j++){
+			if(B(i,j))
+				x[I(i,j)]=(double)(i*i+j*j);	////set boundary condition for x
+		}
+	}
 
-	// Red_Black_Gauss_Seidel_Solver(x,b);
+	Red_Black_Gauss_Seidel_Solver(x,b);
 
-	// if(verbose){
-	// 	std::cout<<"\n\nx for Red-Black Gauss-Seidel:\n";
-	// 	for(int i=0;i<n;i++){
-	// 		for(int j=0;j<n;j++){
-	// 			std::cout<<x[I(i,j)]<<", ";
-	// 		}
-	// 		std::cout<<std::endl;
-	// 	}	
-	// }
-	// std::cout<<"\n\n";
+	if(verbose){
+		std::cout<<"\n\nx for Red-Black Gauss-Seidel:\n";
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
+				std::cout<<x[I(i,j)]<<", ";
+			}
+			std::cout<<std::endl;
+		}	
+	}
+	std::cout<<"\n\n";
 
 	// //////////////////////////////////////////////////////////////////////////
 
@@ -325,24 +331,45 @@ __global__ void GPU_Jacobi(double* x, double* ghost, double* b,
 	
 	// PHASE THREE: half-warps 0-15 use adjusted indexes to fetch from shared into registers,
 	// and calculate their results
-	if (threadIdx.y < 16) {
-		adjust_x = threadIdx.x+1;
-		adjust_y = threadIdx.y+1;
-		top = shared_x[adjust_y-1][adjust_x];
-		left = shared_x[adjust_y][adjust_x-1];
-		right = shared_x[adjust_y][adjust_x+1];
-		bottom = shared_x[adjust_y+1][adjust_x];
-		my_res = my_b + top + left + right + bottom;
-		my_res /= 4;
-	}
-	__syncthreads();
+	adjust_x = threadIdx.x+1;
+	adjust_y = threadIdx.y+1;
 
-	// PHASE FOUR: 
-	// write output to shared with adjusted indexes (for phase five to use)
-	if (threadIdx.y < 16) {
-		shared_x[adjust_y][adjust_x] = my_res;
+	#pragma unroll
+	for (int i = 0; i < 16; i++) {
+		if (threadIdx.y < 16) {
+			top = shared_x[adjust_y-1][adjust_x];
+			left = shared_x[adjust_y][adjust_x-1];
+			right = shared_x[adjust_y][adjust_x+1];
+			bottom = shared_x[adjust_y+1][adjust_x];
+			my_res = my_b + top + left + right + bottom;
+			my_res /= 4;
+		}
+		__syncthreads();
+	
+		// PHASE FOUR: 
+		// write output to shared with adjusted indexes (for phase five to use)
+		if (threadIdx.y < 16) {
+			shared_x[adjust_y][adjust_x] = my_res;
+		}
+		__syncthreads();
 	}
-	__syncthreads();
+	
+
+	// if (threadIdx.y < 16) {
+	// 	adjust_x = threadIdx.x+1;
+	// 	adjust_y = threadIdx.y+1;
+	// 	top = shared_x[adjust_y-1][adjust_x];
+	// 	left = shared_x[adjust_y][adjust_x-1];
+	// 	right = shared_x[adjust_y][adjust_x+1];
+	// 	bottom = shared_x[adjust_y+1][adjust_x];
+	// 	my_res = my_b + top + left + right + bottom;
+	// 	my_res /= 4;
+	// }
+	// __syncthreads();
+	// if (threadIdx.y < 16) {
+	// 	shared_x[adjust_y][adjust_x] = my_res;
+	// }
+	// __syncthreads();
 
 	// PHASE FIVE:
 	// half-warps 0-16 write to global memory while 16-17 update ghost buffers
@@ -434,7 +461,7 @@ std::ofstream out;
 
 //////////////////////////////////////////////////////////////////////////
 ////GPU test function
-void Test_GPU_Solver()
+void Test_GPU_Solver_Jacobi()
 {
 	double* x=new double[s];
 	memset(x,0x0000,sizeof(double)*s);
@@ -592,11 +619,11 @@ void Test_GPU_Solver()
 	// int max_num = 10;
 	double residual=10.0;	////residual
 
-	for (; /*residual > tolerance && */iter_num < 57001 /*max_num*/; iter_num++) {
+	for (; residual > tolerance && iter_num < max_num; iter_num++) {
 		src = iter_num & 1;
 		dest = (src + 1) & 1;
 		GPU_Jacobi<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev[src], ghost_dev[src], b_dev, x_dev[dest], ghost_dev[dest], res_raw);
-		if (iter_num % 500 == 0) {
+		if (iter_num % 100 == 0) {
 			res_raw=thrust::raw_pointer_cast(res_thrust.data());
 			GPU_Residual_Helper<<<dim3(grid_dim, grid_dim), dim3(block_size, block_size+2)>>>(x_dev[dest], ghost_dev[dest], b_dev, res_raw);
 			residual = thrust::reduce(res_thrust.begin(),res_thrust.end(),(double)0,thrust::plus<double>());
@@ -672,14 +699,180 @@ void Test_GPU_Solver()
 
 	std::cout<<"GPU Jacobi solver converges in "<<iter_num<<" iterations, with residual "<<residual<<std::endl;
 
-	// std::out<<"R0: "<<residual<<std::endl;
-	// std::out<<"T1: "<<gpu_time<<std::endl;
+	out<<"R0: "<<residual<<std::endl;
+	out<<"T1: "<<gpu_time<<std::endl;
 
 	//////////////////////////////////////////////////////////////////////////
 
 	delete [] x;
 	delete [] b;
 }
+
+// Test_GPU_Solver_RB_GaussSeidel()
+// {
+// 	double* x=new double[s];
+// 	memset(x,0x0000,sizeof(double)*s);
+// 	double* b=new double[s];
+
+// 	//////////////////////////////////////////////////////////////////////////
+// 	////initialize x and b
+// 	for(int i=-1;i<=n;i++){
+// 		for(int j=-1;j<=n;j++){
+// 			// b[I(i,j)]=4.0;		////set the values for the right-hand side
+// 			b[I(i,j)]=100*i+j;
+// 		}
+// 	}
+// 	for(int i=-1;i<=n;i++){
+// 		for(int j=-1;j<=n;j++){
+// 			if(B(i,j))
+// 				x[I(i,j)]=(double)(i*i+j*j); ////set boundary condition for x
+// 			else
+// 				x[I(i,j)]=100*i+j;	
+// 		}
+// 	}
+
+// 	// reformat memory to avoid column access
+// 	const int my_s = (n+2)*n;
+// 	double* x_host = new double[my_s];
+// 	for(int i = -1;i <= n;i++){
+// 		for(int j = 0;j < n;j++){
+// 			int this_i = i+1;
+// 			x_host[this_i*n+j] = x[I(i,j)];
+// 			// std::cout<<x_host[this_i*n+j]<<", \t";
+// 		}
+// 		// std::cout<<std::endl;
+// 	}
+// 	// reformat memory to avoid column access
+// 	const int my_b = n*n;
+// 	double* b_host = new double[my_b];
+// 	for(int i = 0;i < n;i++){
+// 		for(int j = 0;j < n;j++){
+// 			b_host[i*n+j] = b[I(i,j)];
+// 			// std::cout<<x_host[this_i*n+j]<<", \t";
+// 		}
+// 		// std::cout<<std::endl;
+// 	}
+
+// 	const int ghost_cols = n/8+2;
+// 	double* ghost_host = new double[ghost_cols*n];
+// 	for (int j = 0; j < n; j++) {
+// 		ghost_host[j] = x[I(j,-1)];
+// 		ghost_host[(ghost_cols-1)*n+j] = x[I(j,n)];
+// 	}
+
+// 	for (int j = 0; j < n; j += 16) {
+// 		int col = j/8;
+// 		for (int i = 0; i < n; i++) {
+// 			// std::cout<<col+1<<" "<<col+2<<" "<<i<<", ";
+// 			ghost_host[(col+1)*n+i] = x[I(i,j)];
+// 			ghost_host[(col+2)*n+i] = x[I(i,j+15)];
+// 		}
+// 		// std::cout<<std::endl;
+// 	}
+
+// 	// single buffer
+// 	double* x_dev;
+// 	cudaMalloc((void **)&x_dev, my_s*sizeof(double));
+// 	cudaMemcpy(x_dev, x_host, my_s*sizeof(double), cudaMemcpyHostToDevice);
+
+// 	double* ghost_dev;
+// 	cudaMalloc((void **)&ghost_dev, ghost_cols*n*sizeof(double));
+// 	cudaMemcpy(ghost_dev, ghost_host, ghost_cols*n*sizeof(double), cudaMemcpyHostToDevice);
+
+// 	// single buffer
+// 	double* b_dev;
+// 	cudaMalloc((void **)&b_dev, my_b*sizeof(double));
+// 	cudaMemcpy(b_dev, b_host, my_b*sizeof(double), cudaMemcpyHostToDevice);
+
+// 	// thrust::device_ptr<double> res_dev=thrust::device_malloc<double>(n*n);
+// 	thrust::device_vector<double> res_thrust(n*n, 0);
+// 	double* res_raw;
+// 	// cudaMalloc((void **)&res_dev, n*n*sizeof(double));
+// 	// double* res_host;
+// 	cudaEvent_t start,end;
+// 	cudaEventCreate(&start);
+// 	cudaEventCreate(&end);
+// 	float gpu_time=0.0f;
+// 	cudaDeviceSynchronize();
+// 	cudaEventRecord(start);
+
+// 	int iter_num=0;			////iteration number
+// 	int max_num=1e5;		////max iteration number
+// 	// int max_num = 10;
+// 	double residual=10.0;
+
+
+
+// 	cudaMemcpy(x_host, x_dev[dest], my_s*sizeof(double), cudaMemcpyDeviceToHost);
+// 	cudaMemcpy(ghost_host, ghost_dev[dest], ghost_cols*n*sizeof(double), cudaMemcpyDeviceToHost);
+	
+// 	for (int j = 0; j < n; j++) {
+// 		x[I(j,-1)] = ghost_host[j];
+// 		x[I(j,n)] = ghost_host[(ghost_cols-1)*n+j];
+// 	}
+
+// 	for (int j = 0; j < n; j += 16) {
+// 		int col = j/8;
+// 		for (int i = 0; i < n; i++) {
+// 			// std::cout<<col+1<<" "<<col+2<<" "<<i<<", ";
+// 			x[I(i,j)] = ghost_host[(col+1)*n+i];
+// 			x[I(i,j+15)] = ghost_host[(col+2)*n+i];
+// 		}
+// 		// std::cout<<std::endl;
+// 	}
+
+// 	for(int i = -1;i <= n;i++){
+// 		for(int j = 0;j < n;j++){
+// 			int this_i = i+1;
+// 			x[I(i,j)] = x_host[this_i*n+j];
+// 			// std::cout<<x_host[this_i*n+j]<<", \t";
+// 		}
+// 		// std::cout<<std::endl;
+// 	}
+	
+
+
+// 	cudaEventRecord(end);
+// 	cudaEventSynchronize(end);
+// 	cudaEventElapsedTime(&gpu_time,start,end);
+// 	printf("\nGPU runtime: %.4f ms\n",gpu_time);
+// 	cudaEventDestroy(start);
+// 	cudaEventDestroy(end);
+// 	//////////////////////////////////////////////////////////////////////////
+
+// 	//output x
+// 	if(verbose){
+// 		std::cout<<"\n\nx for your GPU solver:\n";
+// 		for(int i=-1;i<=n;i++){
+// 			for(int j=-1;j<=n;j++){
+// 				// std::cout<<x[I(i,j)]<<", ";
+// 				printf("%.0lf, \t", x[I(i,j)]);
+// 			}
+// 			std::cout<<std::endl;
+// 		}	
+// 	}
+// 	std::cout<<std::endl;
+// 	std::cout<<std::endl;
+
+// 	////calculate residual
+// 	residual=0.0;
+// 	for(int i=0;i<n;i++){
+// 		for(int j=0;j<n;j++){
+// 			residual+=pow(4.0*x[I(i,j)]-x[I(i-1,j)]-x[I(i+1,j)]-x[I(i,j-1)]-x[I(i,j+1)]-b[I(i,j)],2);
+// 		}
+// 	}
+// 	std::cout<<"\n\nresidual for your GPU solver: "<<residual<<std::endl;
+
+// 	std::cout<<"GPU Red-Black Gauss-Seidel solver converges in "<<iter_num<<" iterations, with residual "<<residual<<std::endl;
+
+// 	// std::out<<"R0: "<<residual<<std::endl;
+// 	// std::out<<"T1: "<<gpu_time<<std::endl;
+
+// 	//////////////////////////////////////////////////////////////////////////
+
+// 	delete [] x;
+// 	delete [] b;
+// }
 
 int main()
 {
@@ -701,7 +894,8 @@ int main()
 	#endif //CPU
 
 	#ifndef CPU
-	Test_GPU_Solver();	////Test function for your own GPU implementation
+	Test_GPU_Solver_Jacobi();	////Test function for your own GPU implementation
+	//Test_GPU_Solver_RB_GaussSeidel();
 	#endif
 
 	return 0;
