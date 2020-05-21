@@ -150,7 +150,9 @@ __global__ void N_Body_Simulation_GPU(const double* pos_x, const double* pos_y, 
             
             // calculations
             dis_squared = dx*dx + dy*dy + dz*dz;
-			one_over_dis_cube = 1.0 / pow(sqrt(dis_squared + epsilon_squared), 3);
+			// one_over_dis_cube = 1.0 / pow(sqrt(dis_squared + epsilon_squared), 3);
+			one_over_dis_cube = rsqrt(dis_squared + epsilon_squared);
+			one_over_dis_cube *= one_over_dis_cube * one_over_dis_cube;
 
             // increment acceleration for one round
 			otherM = sharedM[shift_thread_idx];
