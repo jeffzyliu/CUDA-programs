@@ -50,7 +50,7 @@ In addition to relying on SIMD, GPU architecture also has a few more catches. In
 
 The SIMD model (and in more advanced contexts, MIMD can be created) is then perfect on vectorized operations, where a computation can be described as a set of parallel operations on vectors (arrays to us computer scientists but with math terminology). Coincidentally, linear algebra and differential equations are the fundamental processes of almost all things in scientific computing. So SIMD and GPGPU programming is perfectly suited to massive scientific computing applications where a CPU would take far too long to feasibly compute a result.
 
-### My projects and their applications
+## My projects and their applications
 
 #### Competition 1 - Linear Algebra
 
@@ -80,4 +80,14 @@ Ultimately, I optimized this to near perfection, but I did not use two technique
 
 The Poisson equation is a common scientific computing problem with many applications, especially in fluid dynamics. It is `Laplacian(phi) = f`, where the Laplace operator is the divergence of the gradient of a multivariable function, `f` is some given result, and `phi` is the variable that we want to solve for. Once again, computers can't really do real calculus, so we approximate the Laplace operator by discretizing it on a grid of many particles. In that case, the divergence of the gradient can be approximated as the sum of the discretized partial derivatives `del/delx` and `del/dely` (and more if you're doing 3d or higher-dimensional problems). Those discretized partial derivatives can be calculated as a convolution over the grid.
 
-This convolution can be expressed as a sparse matrix multiplication, where most of the elements are 0 except for the select few that we care about in the convolution for each particle on the grid. We can solve this with many methods, except the problem with the Poisson equation is that we easily get to billions of entries in such a matrix, or far more. Regular computation paradigms 
+This convolution can be expressed as a sparse matrix multiplication, where most of the elements are 0 except for the select few that we care about in the convolution for each particle on the grid. We can solve this with many methods, except the problem with the Poisson equation is that we easily get to billions of entries in such a matrix, or far more. Regular computation paradigms like least-squares cannot solve such an equation in reasonable time. (There are actually other methods to store a sparse matrix and use more advanced methods like gradient descent and conjugate gradients, but that's another type of problem to solve).
+
+To sidestep the issue of solving a massive matrix, we again use iterative approximation methods. I specifically implemented the Jacobi iteration, which consists of repeatedly guessing closer and closer values of `phi` by reversing the Laplace convolution, and calculating the squared residuals to check how far off we are. This method is really really slow in terms of iterations it takes to converge to the actual solution (and may never converge in time with extremely large problems), but it is extremely fast to calculate per iteration.
+
+To optimize this, I designed an even worse approximation algorithm than the Jacobi, but one that's more compatible with GPU architecture. It further adds many orders of iterations necessary, but it makes each iteration so much faster that the final conversion time for smaller problems is much quicker. I also implemented a spaced-out residual calculation, so I only need to check my progress every few thousand iterations, saving me tons of processing time.
+
+I was able to get around a 100 times speedup for this. I don't anticipate being close to the fastest solution, as there are much more sophisticated ways (such as red-black Gauss-Seidel) to do the Jacobi estimation but more efficiently).
+
+## Final project
+
+I'm working on data obfuscation and analysis with parallel RSA encrpytion for my final project. It's WIP and the repo is at https://github.com/druyang/parallel-data-analysis-obfuscation.
