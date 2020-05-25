@@ -90,4 +90,4 @@ I was able to get around a 100 times speedup over the CPU for this. I don't anti
 
 ## Final project
 
-I'm working on data obfuscation and analysis with parallel RSA encrpytion for my final project. It's WIP and the repo is at https://github.com/druyang/parallel-data-analysis-obfuscation.
+I'm working on data obfuscation and analysis with parallel RSA encryption for my final project. It's WIP and the repo is at https://github.com/druyang/parallel-data-analysis-obfuscation.
