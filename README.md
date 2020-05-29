@@ -20,6 +20,10 @@ CUDA stands for Compute Unified Device Architecture, which is an ecosystem of ha
 
 ### Why use GPUs?
 
+[![Watch the video](https://j.gifs.com/jZWlE5.gif)](https://www.youtube.com/watch?v=-P28LKWTzrI)
+
+Click this GIF to watch this funny video by Mythbusters and Nvidia and you have the answer to everything! Just kidding, but it's kind of accurate. Moving on!
+
 For many years, Moore's law has held true. We have seen exponential growth in CPU processing power, and exponential decay in cost for that processing power since their inception. However, Moore's law is dying. We're running into the laws of physics that prevent us from fitting more transistors on a chip without overheating. The current solution, then, to increase processing power (before new computing paradigms such as quantum computing can bridge tha gap), is to not use better cores, but to use more cores. This is the motivation behind parallel computing, and how modern supercomputers work today.
 
 An extension of the parallel computing model lets us arrive at the concept of General-Purpose GPU programming. GPUs were initially (and still are) created for graphics processing, which is an inherently parallel computing problem. Thousands of pixel colors are calculated dozens of times a second to be fed to a screen. Instead of using a small number of CPU cores, computer engineers created a GPU containing **hundreds or thousands of much weaker cores to do many tasks in parallel in one computer chip**.
@@ -54,6 +58,10 @@ The SIMD model (and in more advanced contexts, MIMD can be created) is then perf
 
 #### Competition 1 - Linear Algebra
 
+![matrix multiplication](https://j.gifs.com/VAzB41.gif)
+
+###### 3Blue1Brown on matrix multiplications as compositions!
+
 My first assignment here was just to implement some basic algorithms that are fundamental to linear algebra, and also for understanding the SIMD model and GPU architecture. The key thing about matrix multiplication is that it is perfectly parallelizable; given matrices A and B to multiply, all elements in result matrix C are completely independent from each other. This is great, since we can task every element in our C to a single GPU core, which will compute it with a dot product, a same instruction which satisfies SIMD.
 
 Matrix transposing is a really easy problem, but it is a little bit tricky to do quickly without wasting time. I won't go into the details here, but it involves swapping the elements in shared memory and doing consistent reads and writes in row-major order.
@@ -63,6 +71,10 @@ Parallel reduction for a matrix norm is also important in linear algebra (for in
 I was able to get a massive speedup for competition 1, and I almost topped the class leaderboards.
 
 #### Competition 2 - N-body problem
+
+![galaxy simulation](https://j.gifs.com/YWDG4p.gif)
+
+###### Disclaimer: My program doesn't have any cool graphics like this GIF does, but it does the same kind of calculations.
 
 My second assignment was to iteratively solve a gravitational n-body problem. In this type of problem, a large number of physical objects are related by certain differential equations in physics. These can be a large variety of equations; perhaps they're electromagnetic forces, physical stress, momentum and torques, or in my case, Newtonian gravity.
 
@@ -77,6 +89,10 @@ I described my process, my successes, and my struggles with writing this code in
 Ultimately, I optimized this to near perfection, but I did not use two techniques that other people did in the class. One of them was a memory organization thing that was not a huge deal. The other one was. There exists a function that did math like 10 times faster than just writing out the operations by hand which I did not use, and my placement suffered as a result. That's a lesson that small optimizations mean little compared to the central bottleneck of your program, which in this case was my reciprocal square root calculation, a calculation that's very computationally expensive without using CUDA libraries.
 
 #### Competition 3 -- Poisson equation linear solver
+
+![divergence](https://j.gifs.com/nxWpD4.gif)
+
+###### 3Blue1Brown on divergence and curl!
 
 The Poisson equation is a common scientific computing problem with many applications, especially in fluid dynamics. It is `Laplacian(phi) = f`, where the Laplace operator is the divergence of the gradient of a multivariable function, `f` is some given result, and `phi` is the variable that we want to solve for. Once again, computers can't really do real calculus, so we approximate the Laplace operator by discretizing it on a grid of many particles. In that case, the divergence of the gradient can be approximated as the sum of the discretized partial derivatives `del/delx` and `del/dely` (and more if you're doing 3d or higher-dimensional problems). Those discretized partial derivatives can be calculated as a convolution over the grid.
 
