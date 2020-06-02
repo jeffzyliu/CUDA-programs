@@ -106,6 +106,8 @@ To optimize this, I designed an even worse approximation algorithm than the Jaco
 
 I was able to get around a 100 times speedup over the CPU for this. I don't anticipate being close to the class leaderboard for this one, as there are much more sophisticated ways (such as red-black Gauss-Seidel) to do the Jacobi estimation but more efficiently).
 
+EDIT: after seeing the results, I actually did get 2nd place in class, which I'm really happy about! Turns out my data-wrangling techniques did do well. However, the first place team's program was over ten times faster than mine, for the exact reasons I anticipated. In addition to optimizing Gauss-Seidel iterations with step sizes of approximately ~1.8 (due to some complex math that speeds up convergence), they also used an advanced memory interleaving strategy. I discovered that such a strategy exists, but was not able to convert the abstract idea into a concrete representation; huge respect to them for actually figuring out how to implement it.
+
 ## Final project
 
 I'm working on data obfuscation and analysis with parallel RSA encryption for my final project. It's WIP and the repo is at https://github.com/druyang/parallel-data-analysis-obfuscation.
