@@ -10,7 +10,9 @@ For program 1, I received **2nd highest speed in class** for simple matrix multi
 
 For program 2, I was only 14th in class. However, with 1 line of code changed to leverage CUDA's math library, which was what most other students did, my placement would have jumped to 5th place. My code was highly optimized except for using traditional square root math instead of CUDA's optimized rsqrt() function.
 
-Results for program 3 have yet to be released.
+For program 3, I once again achieved **2nd highest speed in class**.
+
+From the three problems in program 1 and the problems in programs 2 and 3, I ended with a combined placement of **3rd overall in the class**. The class started as around ~60 students organized into ~30-40 teams, but I'm not sure how many people ended up dropping.
 
 ## More detailed intro:
 
