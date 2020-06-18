@@ -12,7 +12,7 @@ For program 2, I was only 14th in class. However, with 1 line of code changed to
 
 For program 3, I once again achieved **2nd highest speed in class**.
 
-From the three problems in program 1 and the problems in programs 2 and 3, I ended with a combined placement of **3rd overall in the class**. The class started as around ~60 students organized into ~30-40 teams, but I'm not sure how many people ended up dropping.
+From the three problems in program 1 and the problems in programs 2 and 3, I ended with a combined placement of **3rd overall in the class**, out of ~60-70 students organized into 31 teams.
 
 ## More detailed intro:
 
@@ -110,4 +110,10 @@ EDIT: after seeing the results, I actually did get 2nd place in class, which I'm
 
 ## Final project
 
-I'm working on data obfuscation and analysis with parallel RSA encryption for my final project. It's WIP and the repo is at https://github.com/druyang/parallel-data-analysis-obfuscation.
+I worked on translingual cryptographic obfuscation for data analysis for my final project. My fork of the team repo is https://github.com/jeffzyliu/cryptographic-key-obfuscation. See the repo and the final report within for details.
+
+The professor gave us high praise for this project as follows:
+
+> "This project wins the best demonstration and presentation among all [graduate and undergraduate] teams. It picks a very challenging topic to showcase the power of GPU computing and in the end fully demonstrates the efficacy of GPU  in a very novel context."
+
+-[Bo Zhu](https://www.dartmouth.edu/~boolzhu/), COSC 89.25/189.3
